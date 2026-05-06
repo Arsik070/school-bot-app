@@ -689,7 +689,7 @@
   const SUPABASE_URL = 'https://mhesgdymsxnkxkwwbpxv.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oZXNnZHltc3hua3hrd3dicHh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMDI1NzksImV4cCI6MjA5MzY3ODU3OX0.4kjg-MYdNHqRNRno4lY74DqawnU4XUIDCv5pPiA2VwQ';
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // Telegram WebApp
   const tg = window.Telegram?.WebApp;
@@ -873,7 +873,7 @@
       return;
     }
 
-    const { error } = await supabase.from('schedules').upsert({
+    const { error } = await db.from('schedules').upsert({
       user_id: userId,
       day_of_week: selectedDay,
       lesson_order: editingLessonOrder,
@@ -892,7 +892,7 @@
   }
 
   async function deleteLesson(id) {
-    const { error } = await supabase.from('schedules').delete().eq('id', id);
+    const { error } = await db.from('schedules').delete().eq('id', id);
     if (!error) {
       showToast('Урок удалён');
       await loadSchedule();
@@ -978,7 +978,7 @@
 
     const dueDate = document.getElementById('hwDate').value.trim() || null;
 
-    const { error } = await supabase.from('homework').insert({
+    const { error } = await db.from('homework').insert({
       user_id: userId,
       subject: selectedSubject,
       task: task,
@@ -997,13 +997,13 @@
   }
 
   async function toggleHW(id, isDone) {
-    await supabase.from('homework').update({ is_done: isDone }).eq('id', id);
+    await db.from('homework').update({ is_done: isDone }).eq('id', id);
     await loadHomework();
     showToast(isDone ? 'Молодец! 🎉' : 'Вернули в список');
   }
 
   async function deleteHW(id) {
-    await supabase.from('homework').delete().eq('id', id);
+    await db.from('homework').delete().eq('id', id);
     showToast('ДЗ удалено');
     await loadHomework();
   }
@@ -1021,8 +1021,8 @@
 
   async function resetAll() {
     if (!confirm('Точно удалить ВСЕ данные? Это нельзя отменить!')) return;
-    await supabase.from('schedules').delete().eq('user_id', userId);
-    await supabase.from('homework').delete().eq('user_id', userId);
+    await db.from('schedules').delete().eq('user_id', userId);
+    await db.from('homework').delete().eq('user_id', userId);
     showToast('Все данные удалены');
     scheduleData = [];
     homeworkData = [];
