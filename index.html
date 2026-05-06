@@ -789,7 +789,7 @@
     const list = document.getElementById('lessonsList');
     list.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка...</div>';
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('schedules')
       .select('*')
       .eq('user_id', userId)
@@ -901,7 +901,7 @@
 
   // ============ HOMEWORK ============
   async function loadHomework() {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('homework')
       .select('*')
       .eq('user_id', userId)
