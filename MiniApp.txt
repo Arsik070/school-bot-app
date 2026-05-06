@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Расписание</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Comfortaa:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1923;
+      --card: #1a2836;
+      --card-hover: #213344;
+      --accent: #00d4aa;
+      --accent-light: #00f5c4;
+      --accent-dim: rgba(0, 212, 170, 0.15);
+      --text: #e8f0f7;
+      --text-dim: #7a8fa3;
+      --danger: #ff6b6b;
+      --danger-dim: rgba(255, 107, 107, 0.15);
+      --warning: #ffd93d;
+      --subject-math: #ff6b9d;
+      --subject-rus: #6bc5ff;
+      --subject-eng: #ffd93d;
+      --subject-phys: #c084fc;
+      --subject-chem: #00d4aa;
+      --subject-bio: #86efac;
+      --subject-hist: #fb923c;
+      --subject-geo: #38bdf8;
+      --subject-info: #a78bfa;
+      --subject-lit: #f9a8d4;
+      --subject-pe: #34d399;
+      --subject-art: #f472b6;
+      --subject-music: #e879f9;
+      --subject-tech: #94a3b8;
+      --subject-social: #fbbf24;
+      --subject-default: #64748b;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: 100px;
+    }
+
+    /* Background decoration */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      right: -30%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0, 212, 170, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 440px;
+      margin: 0 auto;
+      padding: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 20px 0 24px;
+    }
+
+    .header h1 {
+      font-family: 'Comfortaa', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-light), var(--accent), #00b4d8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 4px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px 8px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tab.active {
+      color: var(--bg);
+      background: var(--accent);
+    }
+
+    .tab span {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 2px;
+    }
+
+    /* Days row */
+    .days-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .days-row::-webkit-scrollbar { display: none; }
+
+    .day-chip {
+      flex-shrink: 0;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      background: var(--card);
+      color: var(--text-dim);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-align: center;
+      min-width: 52px;
+    }
+
+    .day-chip.active {
+      background: var(--accent);
+      color: var(--bg);
+      box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
+    }
+
+    .day-chip .day-name { display: block; font-size: 11px; margin-bottom: 2px; }
+    .day-chip .day-short { display: block; font-size: 15px; }
+
+    /* Lesson cards */
+    .lessons-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .lesson-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: all 0.25s ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .lesson-card:active {
+      transform: scale(0.98);
+    }
+
+    .lesson-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--subject-color, var(--accent));
+      border-radius: 0 4px 4px 0;
+    }
+
+    .lesson-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      flex-shrink: 0;
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .lesson-info { flex: 1; min-width: 0; }
+
+    .lesson-subject {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .lesson-hw {
+      font-size: 12px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .lesson-hw.has-hw {
+      color: var(--warning);
+    }
+
+    .lesson-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+      background: transparent;
+    }
+
+    .btn-icon:active { transform: scale(0.9); }
+    .btn-edit { color: var(--accent); }
+    .btn-delete { color: var(--danger); }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+    }
+
+    .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+
+    /* Add button */
+    .add-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 2px dashed rgba(0, 212, 170, 0.3);
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.25s;
+      margin-top: 12px;
+    }
+
+    .add-btn:active {
+      transform: scale(0.98);
+      background: rgba(0, 212, 170, 0.25);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.show {
+      display: flex;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .modal {
+      background: var(--card);
+      border-radius: 24px 24px 0 0;
+      width: 100%;
+      max-width: 440px;
+      padding: 24px 20px 40px;
+      animation: slideUp 0.3s ease;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .modal-handle {
+      width: 40px;
+      height: 4px;
+      background: var(--text-dim);
+      border-radius: 2px;
+      margin: 0 auto 20px;
+      opacity: 0.4;
+    }
+
+    .modal h2 {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .subject-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .subject-option {
+      padding: 10px 6px;
+      border-radius: var(--radius-sm);
+      border: 2px solid transparent;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .subject-option:active { transform: scale(0.95); }
+
+    .subject-option.selected {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .subject-option .subj-emoji {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      font-family: 'Nunito', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea {
+      resize: none;
+      min-height: 80px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+
+    /* Homework tab */
+    .hw-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 10px;
+      border-left: 4px solid var(--subject-color, var(--accent));
+      transition: all 0.2s;
+    }
+
+    .hw-card.done {
+      opacity: 0.5;
+    }
+
+    .hw-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .hw-subject {
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .hw-date {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .hw-task {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .hw-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .hw-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .hw-btn:active { transform: scale(0.95); }
+
+    .hw-btn-done {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .hw-btn-done.completed {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .hw-btn-del {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+
+    /* Tab content */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--accent-dim);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--accent);
+      color: var(--bg);
+      padding: 12px 24px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 14px;
+      z-index: 200;
+      transition: transform 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Settings section */
+    .settings-info {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .settings-info p {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .settings-info strong {
+      color: var(--text);
+    }
+
+    .reset-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 2px solid var(--danger);
+      background: var(--danger-dim);
+      color: var(--danger);
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>📚 Моё расписание</h1>
+    <p id="greeting">Загрузка...</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="schedule" onclick="switchTab('schedule')">
+      <span>📋</span>Расписание
+    </div>
+    <div class="tab" data-tab="homework" onclick="switchTab('homework')">
+      <span>📝</span>ДЗ
+    </div>
+    <div class="tab" data-tab="settings" onclick="switchTab('settings')">
+      <span>⚙️</span>Ещё
+    </div>
+  </div>
+
+  <!-- Schedule Tab -->
+  <div class="tab-content active" id="tab-schedule">
+    <div class="days-row" id="daysRow"></div>
+    <div id="lessonsList" class="lessons-list"></div>
+    <button class="add-btn" onclick="openAddLesson()">+ Добавить урок</button>
+  </div>
+
+  <!-- Homework Tab -->
+  <div class="tab-content" id="tab-homework">
+    <div id="hwList"></div>
+    <button class="add-btn" onclick="openAddHW()">+ Записать ДЗ</button>
+  </div>
+
+  <!-- Settings Tab -->
+  <div class="tab-content" id="tab-settings">
+    <div class="settings-info">
+      <p>👋 Это твоё личное расписание. Только ты видишь свои уроки и ДЗ.</p>
+      <p style="margin-top:8px">💡 <strong>Совет:</strong> Можешь записать ДЗ голосовым в боте — оно появится здесь!</p>
+    </div>
+    <div class="settings-info">
+      <p>📊 <strong>Статистика:</strong></p>
+      <p id="statsText">Загрузка...</p>
+    </div>
+    <button class="reset-btn" onclick="resetAll()">🗑️ Очистить все данные</button>
+  </div>
+</div>
+
+<!-- Add Lesson Modal -->
+<div class="modal-overlay" id="lessonModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="lessonModalTitle">Добавить урок</h2>
+    <div class="form-group">
+      <label>Предмет</label>
+      <div class="subject-grid" id="subjectGrid"></div>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="closeModal('lessonModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveLesson()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add HW Modal -->
+<div class="modal-overlay" id="hwModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Записать ДЗ</h2>
+    <div class="form-group">
+      <label>Предмет</label>
+      <div class="subject-grid" id="hwSubjectGrid"></div>
+    </div>
+    <div class="form-group">
+      <label>Задание</label>
+      <textarea id="hwTask" placeholder="Что задали? Например: §12, упр. 45-48"></textarea>
+    </div>
+    <div class="form-group">
+      <label>На какое число</label>
+      <input type="text" id="hwDate" placeholder="Например: завтра, пятница, 15.05">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" onclick="closeModal('hwModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveHW()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ============ CONFIG ============
+  // ЗАМЕНИ эти значения на свои из Supabase!
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Telegram WebApp
+  const tg = window.Telegram?.WebApp;
+  let userId = null;
+
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    userId = tg.initDataUnsafe?.user?.id;
+    const firstName = tg.initDataUnsafe?.user?.first_name || '';
+    document.getElementById('greeting').textContent = `Привет, ${firstName}! 👋`;
+  }
+
+  // Fallback для тестирования в браузере
+  if (!userId) {
+    userId = 12345;
+    document.getElementById('greeting').textContent = 'Режим тестирования 🧪';
+  }
+
+  // ============ SUBJECTS ============
+  const SUBJECTS = [
+    { name: 'Математика', emoji: '🔢', color: 'var(--subject-math)' },
+    { name: 'Русский', emoji: '📖', color: 'var(--subject-rus)' },
+    { name: 'Английский', emoji: '🇬🇧', color: 'var(--subject-eng)' },
+    { name: 'Физика', emoji: '⚡', color: 'var(--subject-phys)' },
+    { name: 'Химия', emoji: '🧪', color: 'var(--subject-chem)' },
+    { name: 'Биология', emoji: '🌿', color: 'var(--subject-bio)' },
+    { name: 'История', emoji: '🏛️', color: 'var(--subject-hist)' },
+    { name: 'География', emoji: '🌍', color: 'var(--subject-geo)' },
+    { name: 'Информатика', emoji: '💻', color: 'var(--subject-info)' },
+    { name: 'Литература', emoji: '📚', color: 'var(--subject-lit)' },
+    { name: 'Физкультура', emoji: '⚽', color: 'var(--subject-pe)' },
+    { name: 'ИЗО', emoji: '🎨', color: 'var(--subject-art)' },
+    { name: 'Музыка', emoji: '🎵', color: 'var(--subject-music)' },
+    { name: 'Технология', emoji: '🔧', color: 'var(--subject-tech)' },
+    { name: 'Обществознание', emoji: '👥', color: 'var(--subject-social)' },
+    { name: 'Алгебра', emoji: '📐', color: 'var(--subject-math)' },
+    { name: 'Геометрия', emoji: '📏', color: 'var(--subject-phys)' },
+    { name: 'ОБЖ', emoji: '🛡️', color: 'var(--subject-default)' },
+  ];
+
+  function getSubjectData(name) {
+    return SUBJECTS.find(s => s.name === name) || { name, emoji: '📘', color: 'var(--subject-default)' };
+  }
+
+  // ============ STATE ============
+  const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const DAYS_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+  let currentDay = new Date().getDay(); // 0=Sun
+  if (currentDay === 0) currentDay = 1; // Sun -> Mon
+  // Convert to 1-indexed (Mon=1)
+  let selectedDay = currentDay;
+
+  let scheduleData = [];
+  let homeworkData = [];
+  let selectedSubject = null;
+  let editingLessonOrder = null;
+
+  // ============ INIT ============
+  function init() {
+    renderDays();
+    loadSchedule();
+    loadHomework();
+  }
+
+  // ============ TABS ============
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+
+    if (tab === 'homework') loadHomework();
+    if (tab === 'settings') updateStats();
+  }
+
+  // ============ DAYS ============
+  function renderDays() {
+    const row = document.getElementById('daysRow');
+    row.innerHTML = '';
+    DAYS.forEach((d, i) => {
+      const dayNum = i + 1;
+      const chip = document.createElement('div');
+      chip.className = `day-chip${dayNum === selectedDay ? ' active' : ''}`;
+      chip.innerHTML = `<span class="day-name">${DAYS_FULL[i].slice(0, 2)}</span><span class="day-short">${d}</span>`;
+      chip.onclick = () => {
+        selectedDay = dayNum;
+        renderDays();
+        renderLessons();
+      };
+      row.appendChild(chip);
+    });
+  }
+
+  // ============ SCHEDULE ============
+  async function loadSchedule() {
+    const list = document.getElementById('lessonsList');
+    list.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка...</div>';
+
+    const { data, error } = await supabase
+      .from('schedules')
+      .select('*')
+      .eq('user_id', userId)
+      .order('lesson_order');
+
+    if (error) {
+      list.innerHTML = '<div class="empty-state"><div class="emoji">😕</div><p>Ошибка загрузки</p></div>';
+      console.error(error);
+      return;
+    }
+
+    scheduleData = data || [];
+    renderLessons();
+  }
+
+  function renderLessons() {
+    const list = document.getElementById('lessonsList');
+    const dayLessons = scheduleData
+      .filter(l => l.day_of_week === selectedDay)
+      .sort((a, b) => a.lesson_order - b.lesson_order);
+
+    if (dayLessons.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="emoji">📭</div>
+          <p>Нет уроков на ${DAYS_FULL[selectedDay - 1].toLowerCase()}</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = dayLessons.map(lesson => {
+      const subj = getSubjectData(lesson.subject);
+      const hw = homeworkData.find(h => h.subject === lesson.subject && !h.is_done);
+      return `
+        <div class="lesson-card" style="--subject-color: ${subj.color}">
+          <div class="lesson-num" style="background: ${subj.color}22; color: ${subj.color}">
+            ${lesson.lesson_order}
+          </div>
+          <div class="lesson-info">
+            <div class="lesson-subject">${subj.emoji} ${lesson.subject}</div>
+            <div class="lesson-hw ${hw ? 'has-hw' : ''}">${hw ? '📝 ' + hw.task : 'Нет ДЗ'}</div>
+          </div>
+          <div class="lesson-actions">
+            <button class="btn-icon btn-delete" onclick="deleteLesson(${lesson.id})">✕</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ============ ADD LESSON ============
+  function openAddLesson() {
+    selectedSubject = null;
+    const dayLessons = scheduleData.filter(l => l.day_of_week === selectedDay);
+    editingLessonOrder = dayLessons.length + 1;
+
+    document.getElementById('lessonModalTitle').textContent =
+      `Урок ${editingLessonOrder} · ${DAYS_FULL[selectedDay - 1]}`;
+
+    renderSubjectGrid('subjectGrid');
+    openModal('lessonModal');
+  }
+
+  function renderSubjectGrid(containerId) {
+    const grid = document.getElementById(containerId);
+    grid.innerHTML = SUBJECTS.map(s => `
+      <div class="subject-option" onclick="selectSubject(this, '${s.name}', '${containerId}')" data-subject="${s.name}">
+        <span class="subj-emoji">${s.emoji}</span>${s.name}
+      </div>
+    `).join('');
+  }
+
+  function selectSubject(el, name, containerId) {
+    document.querySelectorAll(`#${containerId} .subject-option`).forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSubject = name;
+  }
+
+  async function saveLesson() {
+    if (!selectedSubject) {
+      showToast('Выбери предмет!');
+      return;
+    }
+
+    const { error } = await supabase.from('schedules').upsert({
+      user_id: userId,
+      day_of_week: selectedDay,
+      lesson_order: editingLessonOrder,
+      subject: selectedSubject
+    }, { onConflict: 'user_id,day_of_week,lesson_order' });
+
+    if (error) {
+      showToast('Ошибка сохранения 😕');
+      console.error(error);
+      return;
+    }
+
+    closeModal('lessonModal');
+    showToast('Урок добавлен! ✅');
+    await loadSchedule();
+  }
+
+  async function deleteLesson(id) {
+    const { error } = await supabase.from('schedules').delete().eq('id', id);
+    if (!error) {
+      showToast('Урок удалён');
+      await loadSchedule();
+    }
+  }
+
+  // ============ HOMEWORK ============
+  async function loadHomework() {
+    const { data, error } = await supabase
+      .from('homework')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    homeworkData = data || [];
+    renderHomework();
+  }
+
+  function renderHomework() {
+    const list = document.getElementById('hwList');
+
+    if (homeworkData.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="emoji">🎉</div>
+          <p>Нет домашних заданий!</p>
+        </div>`;
+      return;
+    }
+
+    const active = homeworkData.filter(h => !h.is_done);
+    const done = homeworkData.filter(h => h.is_done);
+
+    let html = '';
+
+    if (active.length) {
+      active.forEach(hw => { html += renderHWCard(hw); });
+    }
+
+    if (done.length) {
+      html += `<p style="color:var(--text-dim);font-weight:700;font-size:13px;margin:16px 0 8px;text-transform:uppercase;">✅ Выполнено</p>`;
+      done.forEach(hw => { html += renderHWCard(hw); });
+    }
+
+    list.innerHTML = html;
+  }
+
+  function renderHWCard(hw) {
+    const subj = getSubjectData(hw.subject);
+    return `
+      <div class="hw-card ${hw.is_done ? 'done' : ''}" style="--subject-color: ${subj.color}">
+        <div class="hw-header">
+          <span class="hw-subject">${subj.emoji} ${hw.subject}</span>
+          <span class="hw-date">${hw.due_date || ''}</span>
+        </div>
+        <div class="hw-task">${hw.task}</div>
+        <div class="hw-actions">
+          <button class="hw-btn hw-btn-done ${hw.is_done ? 'completed' : ''}" onclick="toggleHW(${hw.id}, ${!hw.is_done})">
+            ${hw.is_done ? '↩️ Вернуть' : '✅ Готово'}
+          </button>
+          <button class="hw-btn hw-btn-del" onclick="deleteHW(${hw.id})">🗑️</button>
+        </div>
+      </div>`;
+  }
+
+  function openAddHW() {
+    selectedSubject = null;
+    document.getElementById('hwTask').value = '';
+    document.getElementById('hwDate').value = '';
+    renderSubjectGrid('hwSubjectGrid');
+    openModal('hwModal');
+  }
+
+  async function saveHW() {
+    const task = document.getElementById('hwTask').value.trim();
+    if (!selectedSubject) { showToast('Выбери предмет!'); return; }
+    if (!task) { showToast('Напиши задание!'); return; }
+
+    const dueDate = document.getElementById('hwDate').value.trim() || null;
+
+    const { error } = await supabase.from('homework').insert({
+      user_id: userId,
+      subject: selectedSubject,
+      task: task,
+      due_date: dueDate
+    });
+
+    if (error) {
+      showToast('Ошибка сохранения 😕');
+      console.error(error);
+      return;
+    }
+
+    closeModal('hwModal');
+    showToast('ДЗ записано! ✅');
+    await loadHomework();
+  }
+
+  async function toggleHW(id, isDone) {
+    await supabase.from('homework').update({ is_done: isDone }).eq('id', id);
+    await loadHomework();
+    showToast(isDone ? 'Молодец! 🎉' : 'Вернули в список');
+  }
+
+  async function deleteHW(id) {
+    await supabase.from('homework').delete().eq('id', id);
+    showToast('ДЗ удалено');
+    await loadHomework();
+  }
+
+  // ============ SETTINGS ============
+  async function updateStats() {
+    const lessons = scheduleData.length;
+    const hwTotal = homeworkData.length;
+    const hwDone = homeworkData.filter(h => h.is_done).length;
+    document.getElementById('statsText').innerHTML =
+      `📋 Уроков в расписании: <strong>${lessons}</strong><br>` +
+      `📝 Всего ДЗ: <strong>${hwTotal}</strong><br>` +
+      `✅ Выполнено: <strong>${hwDone}</strong>`;
+  }
+
+  async function resetAll() {
+    if (!confirm('Точно удалить ВСЕ данные? Это нельзя отменить!')) return;
+    await supabase.from('schedules').delete().eq('user_id', userId);
+    await supabase.from('homework').delete().eq('user_id', userId);
+    showToast('Все данные удалены');
+    scheduleData = [];
+    homeworkData = [];
+    renderLessons();
+    renderHomework();
+  }
+
+  // ============ MODALS ============
+  function openModal(id) {
+    document.getElementById(id).classList.add('show');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  // Close modal on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.remove('show');
+    });
+  });
+
+  // ============ TOAST ============
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  // ============ START ============
+  init();
+</script>
+</body>
+</html>
