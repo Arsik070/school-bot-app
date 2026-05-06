@@ -662,6 +662,10 @@
     <div class="modal-handle"></div>
     <h2>Записать ДЗ</h2>
     <div class="form-group">
+      <label>На какой день</label>
+      <div class="days-row" id="hwDaySelector" style="margin-bottom:0"></div>
+    </div>
+    <div class="form-group">
       <label>Предмет</label>
       <div class="subject-grid" id="hwSubjectGrid"></div>
     </div>
@@ -822,7 +826,7 @@
 
     list.innerHTML = dayLessons.map(lesson => {
       const subj = getSubjectData(lesson.subject);
-      const hw = homeworkData.find(h => h.subject === lesson.subject && !h.is_done);
+      const hw = homeworkData.find(h => h.subject === lesson.subject && !h.is_done && (h.day_of_week === selectedDay || !h.day_of_week));
       return `
         <div class="lesson-card" style="--subject-color: ${subj.color}">
           <div class="lesson-num" style="background: ${subj.color}22; color: ${subj.color}">
@@ -963,12 +967,29 @@
       </div>`;
   }
 
+  let selectedHWDay = null;
+
   function openAddHW() {
     selectedSubject = null;
+    selectedHWDay = selectedDay;
     document.getElementById('hwTask').value = '';
     document.getElementById('hwDate').value = '';
     renderSubjectGrid('hwSubjectGrid');
+    renderHWDaySelector();
     openModal('hwModal');
+  }
+
+  function renderHWDaySelector() {
+    const container = document.getElementById('hwDaySelector');
+    container.innerHTML = DAYS.map((d, i) => {
+      const dayNum = i + 1;
+      return `<div class="day-chip${dayNum === selectedHWDay ? ' active' : ''}" onclick="selectHWDay(${dayNum})">${d}</div>`;
+    }).join('');
+  }
+
+  function selectHWDay(dayNum) {
+    selectedHWDay = dayNum;
+    renderHWDaySelector();
   }
 
   async function saveHW() {
@@ -977,12 +998,14 @@
     if (!task) { showToast('Напиши задание!'); return; }
 
     const dueDate = document.getElementById('hwDate').value.trim() || null;
+    const hwDay = selectedHWDay || null;
 
     const { error } = await db.from('homework').insert({
       user_id: userId,
       subject: selectedSubject,
       task: task,
-      due_date: dueDate
+      due_date: dueDate,
+      day_of_week: hwDay
     });
 
     if (error) {
