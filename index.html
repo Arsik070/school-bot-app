@@ -662,10 +662,6 @@
     <div class="modal-handle"></div>
     <h2>Записать ДЗ</h2>
     <div class="form-group">
-      <label>На какой день</label>
-      <div class="days-row" id="hwDaySelector" style="margin-bottom:0"></div>
-    </div>
-    <div class="form-group">
       <label>Предмет</label>
       <div class="subject-grid" id="hwSubjectGrid"></div>
     </div>
@@ -674,8 +670,8 @@
       <textarea id="hwTask" placeholder="Что задали? Например: §12, упр. 45-48"></textarea>
     </div>
     <div class="form-group">
-      <label>На какое число</label>
-      <input type="text" id="hwDate" placeholder="Например: завтра, пятница, 15.05">
+      <label>На какую дату</label>
+      <input type="date" id="hwDate" style="color-scheme: dark;">
     </div>
     <div class="modal-buttons">
       <button class="btn btn-secondary" onclick="closeModal('hwModal')">Отмена</button>
@@ -951,11 +947,17 @@
 
   function renderHWCard(hw) {
     const subj = getSubjectData(hw.subject);
+    let dateStr = '';
+    if (hw.due_date) {
+      const d = new Date(hw.due_date);
+      const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+      dateStr = `${dayNames[d.getDay()]}, ${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
     return `
       <div class="hw-card ${hw.is_done ? 'done' : ''}" style="--subject-color: ${subj.color}">
         <div class="hw-header">
           <span class="hw-subject">${subj.emoji} ${hw.subject}</span>
-          <span class="hw-date">${hw.due_date || ''}</span>
+          <span class="hw-date">${dateStr}</span>
         </div>
         <div class="hw-task">${hw.task}</div>
         <div class="hw-actions">
@@ -971,25 +973,13 @@
 
   function openAddHW() {
     selectedSubject = null;
-    selectedHWDay = selectedDay;
     document.getElementById('hwTask').value = '';
-    document.getElementById('hwDate').value = '';
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('hwDate').value = tomorrow.toISOString().split('T')[0];
     renderSubjectGrid('hwSubjectGrid');
-    renderHWDaySelector();
     openModal('hwModal');
-  }
-
-  function renderHWDaySelector() {
-    const container = document.getElementById('hwDaySelector');
-    container.innerHTML = DAYS.map((d, i) => {
-      const dayNum = i + 1;
-      return `<div class="day-chip${dayNum === selectedHWDay ? ' active' : ''}" onclick="selectHWDay(${dayNum})">${d}</div>`;
-    }).join('');
-  }
-
-  function selectHWDay(dayNum) {
-    selectedHWDay = dayNum;
-    renderHWDaySelector();
   }
 
   async function saveHW() {
@@ -997,8 +987,15 @@
     if (!selectedSubject) { showToast('Выбери предмет!'); return; }
     if (!task) { showToast('Напиши задание!'); return; }
 
-    const dueDate = document.getElementById('hwDate').value.trim() || null;
-    const hwDay = selectedHWDay || null;
+    const dueDateInput = document.getElementById('hwDate').value;
+    let dueDate = dueDateInput || null;
+    let hwDay = null;
+
+    if (dueDateInput) {
+      const dateObj = new Date(dueDateInput);
+      let jsDay = dateObj.getDay(); // 0=Sun, 1=Mon...6=Sat
+      hwDay = jsDay === 0 ? null : jsDay; // 1=Mon...6=Sat, Sun=null
+    }
 
     const { error } = await db.from('homework').insert({
       user_id: userId,
